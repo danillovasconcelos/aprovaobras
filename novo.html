@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Novo Serviço</title>
+  <link rel="stylesheet" href="https://unpkg.com/@picocss/pico@2/css/pico.min.css">
+</head>
+<body>
+<main class="container">
+  <a href="dashboard.html">← Voltar</a>
+  <h2>Novo serviço — Aprovação de Projeto</h2>
+
+  <form id="f">
+    <article>
+      <h4>Proprietário</h4>
+      <label>Nome <input id="owner_name" required></label>
+      <label>CPF <input id="owner_cpf" required></label>
+      <label>RG <input id="owner_rg"></label>
+      <label>Orgão/UF <input id="owner_rg_org_uf"></label>
+      <label>Endereço <input id="owner_address"></label>
+      <label>Setor <input id="owner_district"></label>
+      <label>Cidade <input id="owner_city"></label>
+      <label>UF <input id="owner_uf"></label>
+    </article>
+
+    <article>
+      <h4>Serviço/Obra</h4>
+      <label>Endereço da obra <input id="site_address"></label>
+      <label>Setor <input id="site_district"></label>
+      <label>Área construção (m²) <input id="area_construction" type="number" step="0.01"></label>
+      <label>Área do terreno (m²) <input id="area_land" type="number" step="0.01"></label>
+      <label>Nº ART <input id="art_number"></label>
+    </article>
+
+    <button class="contrast" type="submit">Criar rascunho</button>
+  </form>
+
+  <div id="docs" style="display:none">
+    <h4>Documentos exigidos</h4>
+    <div id="docList"></div>
+    <button id="enviar" class="secondary">Enviar para análise</button>
+  </div>
+</main>
+
+<script type="module">
+  import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm'
+  const SUPABASE_URL = 'SEU_SUPABASE_URL'
+  const SUPABASE_ANON_KEY = 'SUA_ANON_KEY'
+  const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+
+  // cidade padrão: Nerópolis
+  const { data: city } = await sb.from('cities').select('id,slug').eq('slug','neropolis').single()
+  const { data: st } = await sb.from('service_types').select('id').eq('code','APROV_PROJ').single()
+
+  let currentService = null
+
+  f.addEventListener('submit', async (e)=>{
+    e.preventDefault()
+    const uid = (await sb.auth.getUser()).data.user?.id
+    if (!uid) return alert('Faça login novamente.')
+
+    const payload = {
+      city_id: city.id,
+      type_id: st.id,
+      created_by: uid,
+      owner_name: owner_name.value,
+      owner_cpf: owner_cpf.value,
+      owner_rg: owner_rg.value,
+      owner_rg_org_uf: owner_rg_org_uf.value,
+      owner_address: owner_address.value,
+      owner_district: owner_district.value,
+      owner_city: owner_city.value,
+      owner_uf: owner_uf.value,
+      site_address: site_address.value,
+      site_district: site_district.value,
+      area_construction: Number(area_construction.value||0),
+      area_land: Number(area_land.value||0),
+      art_number: art_number.value,
+      status: 'draft'
+    }
+
+    const { data, error } = await sb.from('services').insert(payload).select().single()
+    if (error) { console.log(error); return alert('Erro ao criar rascunho.') }
+    currentService = data
+    await showRequiredDocs()
+  })
+
+  async function showRequiredDocs(){
+    const { data: reqs } = await sb
+      .from('service_type_requirements')
+      .select('document_types:document_type_id(id,code,name)')
+      .eq('service_type_id', st.id)
+
+    docList.innerHTML = ''
+    const bucket = 'pdfs'
+    reqs.forEach(r=>{
+      const d = r.document_types
+      const line = document.createElement('div')
+      line.innerHTML = `
+        <label>${d.name}
+          <input type="file" data-docid="${d.id}" data-code="${d.code}" accept="application/pdf">
+        </label>
+      `
+      docList.appendChild(line)
+      line.querySelector('input').addEventListener('change', (ev)=>uploadDoc(ev, d))
+    })
+    docs.style.display = ''
+  }
+
+  async function uploadDoc(ev, d){
+    const file = ev.target.files?.[0]
+    if (!file) return
+    if (file.type !== 'application/pdf') return alert('Envie PDF')
+
+    const path = `${'neropolis'}/${currentService.id}/${d.code}.pdf`
+    const up = await sb.storage.from('pdfs').upload(path, file, { upsert: true, contentType: 'application/pdf' })
+    if (up.error) return alert('Falha no upload.')
+
+    await sb.from('service_documents').upsert({
+      service_id: currentService.id,
+      document_type_id: d.id,
+      file_path: path,
+      uploaded_by: (await sb.auth.getUser()).data.user.id
+    }, { onConflict: 'service_id,document_type_id' })
+
+    alert('OK: '+d.name)
+  }
+
+  enviar.addEventListener('click', async ()=>{
+    if (!currentService) return
+    const { data, error } = await sb.from('services')
+      .update({ status: 'submitted', phase: 'docs' })
+      .eq('id', currentService.id).select().single()
+    if (error) return alert('Erro ao enviar.')
+    alert('Enviado! Protocolo será gerado ao mudar para "submitted".')
+    location.href = 'dashboard.html'
+  })
+</script>
+</body>
+</html>
