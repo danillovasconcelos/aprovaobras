@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Aprova Obras · Login</title>
+  <link rel="stylesheet" href="https://unpkg.com/@picocss/pico@2/css/pico.min.css">
+</head>
+<body>
+<main class="container">
+  <h2>Entrar</h2>
+  <form id="formLogin">
+    <label>CPF
+      <input id="cpfLogin" placeholder="000.000.000-00" required>
+    </label>
+    <label>Senha
+      <input id="passLogin" type="password" required>
+    </label>
+    <button class="contrast" type="submit">Entrar</button>
+    <small><a href="#" id="linkEsqueci">Esqueci a senha</a></small>
+  </form>
+
+  <hr>
+  <h3>Novo acesso</h3>
+  <form id="formSignup">
+    <label>Nome completo <input id="suNome" required></label>
+    <label>Email <input id="suEmail" type="email" required></label>
+    <label>CPF <input id="suCPF" placeholder="000.000.000-00" required></label>
+    <label>Senha <input id="suPass" type="password" required></label>
+    <label>Profissão <input id="suProf"></label>
+    <label>CREA/CAU <input id="suCreaCau"></label>
+    <button type="submit">Criar conta</button>
+  </form>
+</main>
+
+<script type="module">
+  import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm'
+
+  const SUPABASE_URL = 'SEU_SUPABASE_URL'
+  const SUPABASE_ANON_KEY = 'SUA_ANON_KEY'
+  const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+
+  // util
+  const cpfClean = s => (s||'').replace(/\D/g,'')
+
+  // SIGNUP
+  document.querySelector('#formSignup').addEventListener('submit', async (e)=>{
+    e.preventDefault()
+    const full_name = suNome.value.trim()
+    const email = suEmail.value.trim()
+    const cpf = cpfClean(suCPF.value)
+    const password = suPass.value
+    const profession = suProf.value.trim()
+    const crea_cau = suCreaCau.value.trim()
+
+    const { data, error } = await sb.auth.signUp({ email, password })
+    if (error) return alert('Erro no cadastro: '+error.message)
+
+    // cria/atualiza profile
+    const uid = data.user?.id
+    if (uid){
+      await sb.from('profiles').upsert({
+        id: uid, full_name, email, cpf, profession, crea_cau
+      })
+      alert('Conta criada! Confirme o e-mail e depois faça login.')
+    }
+  })
+
+  // LOGIN por CPF
+  document.querySelector('#formLogin').addEventListener('submit', async (e)=>{
+    e.preventDefault()
+    const cpf = cpfClean(cpfLogin.value)
+    const password = passLogin.value
+
+    // acha email pelo CPF
+    const { data: prof, error: pe } = await sb.from('profiles').select('email').eq('cpf', cpf).maybeSingle()
+    if (pe || !prof) return alert('CPF não encontrado. Cadastre-se.')
+    const email = prof.email
+
+    const { error } = await sb.auth.signInWithPassword({ email, password })
+    if (error) return alert('Erro no login: '+error.message)
+
+    location.href = 'dashboard.html'
+  })
+
+  // Esqueci senha
+  document.querySelector('#linkEsqueci').addEventListener('click', async ()=>{
+    const email = prompt('Informe seu e-mail para redefinir a senha:')
+    if (!email) return
+    const { error } = await sb.auth.resetPasswordForEmail(email, {
+      redirectTo: location.origin + '/index.html'
+    })
+    if (error) alert('Erro: '+error.message)
+    else alert('Enviamos um link para o seu e-mail.')
+  })
+</script>
+</body>
+</html>
