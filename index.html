@@ -5,94 +5,214 @@
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
   <title>Aprova Obras · Login</title>
   <link rel="stylesheet" href="https://unpkg.com/@picocss/pico@2/css/pico.min.css">
+  <style>
+    .kbd{font-family:ui-monospace,Menlo,Consolas,monospace;background:#0b1430;border:1px solid #243b6b;
+         padding:.1rem .35rem;border-radius:.35rem;font-size:.85rem}
+    .mono{font-family:ui-monospace,Menlo,Consolas,monospace}
+    .muted{opacity:.75}
+    .card{border:1px solid #243b6b;border-radius:12px;padding:1rem}
+  </style>
 </head>
 <body>
 <main class="container">
-  <h2>Entrar</h2>
-  <form id="formLogin">
-    <label>CPF
-      <input id="cpfLogin" placeholder="000.000.000-00" required>
-    </label>
-    <label>Senha
-      <input id="passLogin" type="password" required>
-    </label>
-    <button class="contrast" type="submit">Entrar</button>
-    <small><a href="#" id="linkEsqueci">Esqueci a senha</a></small>
-  </form>
+
+  <hgroup>
+    <h2>Aprova Obras</h2>
+    <p class="muted">Acesse sua conta com CPF e senha ou crie um novo acesso.</p>
+  </hgroup>
+
+  <!-- Bloco de CONFIG: cola SUPABASE_URL e ANON KEY uma vez e salva no navegador -->
+  <article class="card" id="cfg">
+    <h4>Configurar Supabase (uma vez)</h4>
+    <div class="grid">
+      <label>SUPABASE_URL
+        <input id="cfgUrl" placeholder="https://xxxxx.supabase.co">
+      </label>
+      <label>SUPABASE_ANON_KEY
+        <input id="cfgKey" class="mono" placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...">
+      </label>
+    </div>
+    <footer>
+      <button id="btnCfgSave">Salvar</button>
+      <button id="btnCfgTest" class="secondary">Testar conexão</button>
+      <span id="cfgStatus" class="muted"></span>
+    </footer>
+    <small class="muted">
+      Dica: você pode fixar as credenciais no arquivo e esconder este bloco.
+    </small>
+  </article>
 
   <hr>
-  <h3>Novo acesso</h3>
-  <form id="formSignup">
-    <label>Nome completo <input id="suNome" required></label>
-    <label>Email <input id="suEmail" type="email" required></label>
-    <label>CPF <input id="suCPF" placeholder="000.000.000-00" required></label>
-    <label>Senha <input id="suPass" type="password" required></label>
-    <label>Profissão <input id="suProf"></label>
-    <label>CREA/CAU <input id="suCreaCau"></label>
-    <button type="submit">Criar conta</button>
-  </form>
+
+  <div class="grid">
+    <article>
+      <h3>Entrar</h3>
+      <form id="formLogin">
+        <label>CPF
+          <input id="cpfLogin" inputmode="numeric" autocomplete="username"
+                 placeholder="000.000.000-00" required>
+        </label>
+        <label>Senha
+          <input id="passLogin" type="password" autocomplete="current-password" required>
+        </label>
+        <button class="contrast" type="submit">Entrar</button>
+        <small><a href="#" id="linkEsqueci">Esqueci a senha</a></small>
+      </form>
+    </article>
+
+    <article>
+      <h3>Novo acesso</h3>
+      <form id="formSignup">
+        <label>Nome completo <input id="suNome" required></label>
+        <label>Email <input id="suEmail" type="email" required></label>
+        <label>CPF <input id="suCPF" inputmode="numeric" placeholder="000.000.000-00" required></label>
+        <label>Senha <input id="suPass" type="password" minlength="6" required></label>
+        <label>Profissão <input id="suProf" placeholder="Eng. Civil, Arquiteto(a) ..."></label>
+        <label>CREA/CAU <input id="suCreaCau" placeholder="Opcional"></label>
+        <button type="submit">Criar conta</button>
+      </form>
+    </article>
+  </div>
 </main>
 
 <script type="module">
+  // ====== 1) Configure aqui se quiser FIXO no arquivo (e pode ocultar o bloco #cfg) ======
+  // Se deixar vazio, o app usa o que você colar no bloco de configuração.
+  const HARDCODED_SUPABASE_URL = '';            // exemplo: 'https://xxxx.supabase.co'
+  const HARDCODED_SUPABASE_ANON_KEY = '';       // exemplo: 'eyJhbGciOiJI...'
+
+  // ====== 2) Carrega supabase-js ======
   import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm'
 
-  const SUPABASE_URL = 'SEU_SUPABASE_URL'
-  const SUPABASE_ANON_KEY = 'SUA_ANON_KEY'
-  const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+  // ====== 3) Storage p/ salvar/ler as chaves no navegador ======
+  const K_URL = 'SUPA_URL';
+  const K_KEY = 'SUPA_KEY';
+
+  const loadCfg = () => ({
+    url: HARDCODED_SUPABASE_URL || localStorage.getItem(K_URL) || sessionStorage.getItem(K_URL) || '',
+    key: HARDCODED_SUPABASE_ANON_KEY || localStorage.getItem(K_KEY) || sessionStorage.getItem(K_KEY) || '',
+  });
+  const saveCfg = (url, key) => {
+    localStorage.setItem(K_URL, url); sessionStorage.setItem(K_URL, url);
+    localStorage.setItem(K_KEY, key); sessionStorage.setItem(K_KEY, key);
+  };
+
+  let sb = null;
 
   // util
-  const cpfClean = s => (s||'').replace(/\D/g,'')
+  const cpfClean = (s='') => s.replace(/\D/g,'');
+  const $ = sel => document.querySelector(sel);
 
-  // SIGNUP
-  document.querySelector('#formSignup').addEventListener('submit', async (e)=>{
-    e.preventDefault()
-    const full_name = suNome.value.trim()
-    const email = suEmail.value.trim()
-    const cpf = cpfClean(suCPF.value)
-    const password = suPass.value
-    const profession = suProf.value.trim()
-    const crea_cau = suCreaCau.value.trim()
+  function ensureClient(){
+    if (!sb) throw new Error('Conexão não configurada. Cole SUPABASE_URL e ANON KEY e clique em Salvar.');
+    return sb;
+  }
 
-    const { data, error } = await sb.auth.signUp({ email, password })
-    if (error) return alert('Erro no cadastro: '+error.message)
+  // ====== 4) Config bloco ======
+  const cfg = loadCfg();
+  const cfgUrl = $('#cfgUrl'); const cfgKey = $('#cfgKey');
+  const cfgStatus = $('#cfgStatus');
 
-    // cria/atualiza profile
-    const uid = data.user?.id
-    if (uid){
-      await sb.from('profiles').upsert({
-        id: uid, full_name, email, cpf, profession, crea_cau
-      })
-      alert('Conta criada! Confirme o e-mail e depois faça login.')
+  cfgUrl.value = cfg.url; cfgKey.value = cfg.key;
+
+  function initClientFromInputs(){
+    const url = (cfgUrl.value || '').trim(); const key = (cfgKey.value || '').trim();
+    if(!url || !key){ sb = null; cfgStatus.textContent = 'Preencha URL e KEY.'; return false; }
+    sb = createClient(url, key);
+    cfgStatus.textContent = 'Conexão pronta.';
+    return true;
+  }
+
+  $('#btnCfgSave').addEventListener('click', ()=>{
+    saveCfg(cfgUrl.value.trim(), cfgKey.value.trim());
+    initClientFromInputs();
+    alert('Configuração salva no navegador.');
+  });
+
+  $('#btnCfgTest').addEventListener('click', async ()=>{
+    if(!initClientFromInputs()) return;
+    try{
+      const { data, error } = await sb.from('profiles').select('id').limit(1);
+      if(error) throw error;
+      cfgStatus.textContent = 'OK! Consegui consultar o banco.';
+    }catch(err){
+      cfgStatus.textContent = 'Falhou: ' + err.message;
     }
-  })
+  });
 
-  // LOGIN por CPF
-  document.querySelector('#formLogin').addEventListener('submit', async (e)=>{
-    e.preventDefault()
-    const cpf = cpfClean(cpfLogin.value)
-    const password = passLogin.value
+  // Inicializa automaticamente se já tiver salvo ou se estiver hardcoded
+  if(cfg.url && cfg.key){ sb = createClient(cfg.url, cfg.key); cfgStatus.textContent = 'Conexão restaurada.'; }
 
-    // acha email pelo CPF
-    const { data: prof, error: pe } = await sb.from('profiles').select('email').eq('cpf', cpf).maybeSingle()
-    if (pe || !prof) return alert('CPF não encontrado. Cadastre-se.')
-    const email = prof.email
+  // ====== 5) SIGNUP ======
+  $('#formSignup').addEventListener('submit', async (e)=>{
+    e.preventDefault();
+    try{
+      const s = ensureClient();
+      const full_name = $('#suNome').value.trim();
+      const email = $('#suEmail').value.trim();
+      const cpf = cpfClean($('#suCPF').value);
+      const password = $('#suPass').value;
+      const profession = $('#suProf').value.trim();
+      const crea_cau = $('#suCreaCau').value.trim();
 
-    const { error } = await sb.auth.signInWithPassword({ email, password })
-    if (error) return alert('Erro no login: '+error.message)
+      if(cpf.length !== 11){ alert('CPF inválido.'); return; }
 
-    location.href = 'dashboard.html'
-  })
+      const { data, error } = await s.auth.signUp({ email, password });
+      if (error) throw error;
 
-  // Esqueci senha
-  document.querySelector('#linkEsqueci').addEventListener('click', async ()=>{
-    const email = prompt('Informe seu e-mail para redefinir a senha:')
-    if (!email) return
-    const { error } = await sb.auth.resetPasswordForEmail(email, {
-      redirectTo: location.origin + '/index.html'
-    })
-    if (error) alert('Erro: '+error.message)
-    else alert('Enviamos um link para o seu e-mail.')
-  })
+      const uid = data.user?.id;
+      if (uid){
+        const { error: upErr } = await s.from('profiles').upsert({
+          id: uid, full_name, email, cpf, profession, crea_cau
+        });
+        if (upErr) throw upErr;
+      }
+      alert('Conta criada! Confirme o e-mail e depois faça login.');
+    }catch(err){
+      alert('Erro no cadastro: ' + err.message);
+    }
+  });
+
+  // ====== 6) LOGIN por CPF ======
+  $('#formLogin').addEventListener('submit', async (e)=>{
+    e.preventDefault();
+    try{
+      const s = ensureClient();
+      const cpf = cpfClean($('#cpfLogin').value);
+      const password = $('#passLogin').value;
+      if(cpf.length !== 11){ alert('CPF inválido.'); return; }
+
+      const { data: prof, error: pe } = await s
+        .from('profiles').select('email').eq('cpf', cpf).maybeSingle();
+
+      if (pe || !prof) { alert('CPF não encontrado. Cadastre-se.'); return; }
+      const email = prof.email;
+
+      const { error } = await s.auth.signInWithPassword({ email, password });
+      if (error) throw error;
+
+      location.href = 'dashboard.html';
+    }catch(err){
+      alert('Erro no login: ' + err.message);
+    }
+  });
+
+  // ====== 7) Esqueci senha ======
+  $('#linkEsqueci').addEventListener('click', async (e)=>{
+    e.preventDefault();
+    try{
+      const s = ensureClient();
+      const email = prompt('Informe seu e-mail para redefinir a senha:');
+      if (!email) return;
+      const { error } = await s.auth.resetPasswordForEmail(email, {
+        redirectTo: location.origin + '/index.html'
+      });
+      if (error) throw error;
+      alert('Enviamos um link para o seu e-mail.');
+    }catch(err){
+      alert('Erro: ' + err.message);
+    }
+  });
 </script>
 </body>
 </html>
