@@ -1,15 +1,23 @@
 <!doctype html>
 <html lang="pt-BR">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>teste estático</title>
+<body style="font:16px system-ui; padding:24px">
+  <h1>Deploy OK</h1>
+  <p>Se você vê esta página sem erros no console, o problema era o JavaScript do index anterior.</p>
 <head>
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
   <title>aprovaobras · Configurar & Login</title>
+  <!-- build: kb-2025-11-04-01 -->
   <style>
     body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Arial;background:#0b1020;color:#e8eeff}
     .wrap{max-width:1100px;margin:0 auto;padding:20px 16px}
     .card{background:#11162d;border:1px solid #1e2547;border-radius:16px;padding:16px;box-shadow:0 8px 30px rgba(0,0,0,.25)}
     h3{margin:0 0 10px 0}
     .row{display:flex;gap:12px;flex-wrap:wrap}
+    label{display:block;font-size:.9rem;color:#8ea0c6;margin-bottom:6px}
     input,button{border-radius:12px;border:1px solid #2a3569;background:#0d1430;color:#e8eeff;padding:10px 12px}
     input{min-width:240px}
     button{cursor:pointer}
@@ -23,7 +31,7 @@
   <div class="wrap">
     <div class="card">
       <h3>1) Configurar Supabase</h3>
-      <div class="note">Cole sua <b>SUPABASE_URL</b> (ex: https://xxxxx.supabase.co) e <b>ANON KEY</b>.</div>
+      <div class="note">Cole sua <b>SUPABASE_URL</b> (https://xxxxx.supabase.co) e <b>ANON KEY</b>. Fica salvo no navegador.</div>
       <div class="row" style="margin-top:10px">
         <input id="inpUrl" placeholder="https://xxxxx.supabase.co">
         <input id="inpKey" placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...">
@@ -36,49 +44,49 @@
   <script type="module">
     import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm'
 
-    const K_URL = 'SUPA_URL';
-    const K_KEY = 'SUPA_KEY';
-    const inpUrl = document.querySelector('#inpUrl');
-    const inpKey = document.querySelector('#inpKey');
-    const btnConnect = document.querySelector('#btnConnect');
-    const connStatus = document.querySelector('#connStatus');
+    var K_URL = 'SUPA_URL';
+    var K_KEY = 'SUPA_KEY';
 
-    let supabase = null;
+    function $(s){ return document.querySelector(s); }
+    var inpUrl = $('#inpUrl');
+    var inpKey = $('#inpKey');
+    var btnConnect = $('#btnConnect');
+    var connStatus = $('#connStatus');
 
-    function setStatus(msg, cls='warn'){
-      connStatus.textContent = msg;
-      connStatus.className = 'status ' + cls;
+    var savedUrl = localStorage.getItem(K_URL) || sessionStorage.getItem(K_URL) || '';
+    var savedKey = localStorage.getItem(K_KEY) || sessionStorage.getItem(K_KEY) || '';
+    if(savedUrl){ inpUrl.value = savedUrl; }
+    if(savedKey){ inpKey.value = savedKey; }
+
+    var supabase = null;
+
+    function setStatus(text, cls){
+      connStatus.textContent = text;
+      connStatus.className = 'status ' + (cls || 'warn');
     }
 
     function saveCfg(url, key){
-      localStorage.setItem(K_URL, url);
-      localStorage.setItem(K_KEY, key);
+      localStorage.setItem(K_URL, url); sessionStorage.setItem(K_URL, url);
+      localStorage.setItem(K_KEY, key); sessionStorage.setItem(K_KEY, key);
     }
 
-    // Restaura dados salvos
-    window.addEventListener('load', () => {
-      const url = localStorage.getItem(K_URL);
-      const key = localStorage.getItem(K_KEY);
-      if(url) inpUrl.value = url;
-      if(key) inpKey.value = key;
-    });
+    btnConnect.addEventListener('click', async function(){
+      try{
+        var url = (inpUrl.value || '').trim();
+        var key = (inpKey.value || '').trim();
+        if(!url || !key){ setStatus('Preencha URL e KEY', 'err'); return; }
+        if(url.indexOf('.storage.') !== -1){ setStatus('Use a URL do projeto (https://xxxxx.supabase.co), não a do Storage.', 'err'); return; }
 
-    btnConnect.addEventListener('click', async () => {
-      const url = inpUrl.value.trim();
-      const key = inpKey.value.trim();
-      if(!url || !key){ setStatus('Preencha URL e KEY', 'err'); return; }
-
-      try {
         supabase = createClient(url, key);
-        const { data, error } = await supabase.from('profiles').select('id').limit(1);
-        if (error) {
-          setStatus('Conectado (client OK). Teste: ' + error.message, 'ok');
-        } else {
+        var test = await supabase.from('profiles').select('id').limit(1);
+        if(test.error && test.error.message){
+          setStatus('Conectado (client OK). Teste: ' + test.error.message, 'ok');
+        }else{
           setStatus('Conectado (client OK).', 'ok');
         }
         saveCfg(url, key);
-      } catch (err) {
-        setStatus('Erro: ' + err.message, 'err');
+      }catch(err){
+        setStatus('Falha: ' + (err && err.message ? err.message : String(err)), 'err');
       }
     });
   </script>
