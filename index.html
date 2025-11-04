@@ -1,97 +1,10 @@
 <!doctype html>
 <html lang="pt-BR">
-<head>
-  <meta charset="utf-8"/>
-  <meta name="viewport" content="width=device-width,initial-scale=1"/>
-  <title>aprovaobras · Configurar & Login</title>
-  <style>
-    body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Arial;background:#0b1020;color:#e8eeff}
-    .wrap{max-width:1100px;margin:0 auto;padding:20px 16px}
-    .card{background:#11162d;border:1px solid #1e2547;border-radius:16px;padding:16px;box-shadow:0 8px 30px rgba(0,0,0,.25)}
-    h3{margin:0 0 10px 0}
-    .row{display:flex;gap:12px;flex-wrap:wrap}
-    label{display:block;font-size:.9rem;color:#8ea0c6;margin-bottom:6px}
-    input,button{border-radius:12px;border:1px solid #2a3569;background:#0d1430;color:#e8eeff;padding:10px 12px}
-    input{min-width:240px}
-    button{cursor:pointer}
-    .primary{background:#6aa1ff;border-color:#2a62ff;color:#071226;font-weight:600}
-    .status{font-size:.95rem}
-    .ok{color:#36d399}.warn{color:#fbbd23}.err{color:#f87272}
-    .note{color:#8ea0c6;font-size:.9rem}
-  </style>
-</head>
-<body>
-  <div class="wrap">
-    <div class="card">
-      <h3>1) Configurar Supabase</h3>
-      <div class="note">Cole sua <b>SUPABASE_URL</b> (https://xxxxx.supabase.co) e <b>ANON KEY</b>. Fica salvo no navegador.</div>
-      <div class="row" style="margin-top:10px">
-        <input id="inpUrl" placeholder="https://xxxxx.supabase.co">
-        <input id="inpKey" placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...">
-        <button id="btnConnect" class="primary">Conectar</button>
-      </div>
-      <div style="margin-top:8px">Status: <span id="connStatus" class="status warn">Aguardando...</span></div>
-      <div class="note" style="margin-top:6px">Depois de conectar, faça login no bloco ao lado (seu arquivo de login/cadastro).</div>
-    </div>
-
-    <div class="card" style="margin-top:14px">
-      <h3>2) Login / Cadastro</h3>
-      <div class="note">Este é só um placeholder. O importante aqui é o botão "Conectar" funcionar.</div>
-    </div>
-  </div>
-
-  <script type="module">
-    import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm'
-
-    var K_URL = 'SUPA_URL';
-    var K_KEY = 'SUPA_KEY';
-
-    function $(s){ return document.querySelector(s); }
-    var inpUrl = $('#inpUrl');
-    var inpKey = $('#inpKey');
-    var btnConnect = $('#btnConnect');
-    var connStatus = $('#connStatus');
-
-    var savedUrl = localStorage.getItem(K_URL) || sessionStorage.getItem(K_URL) || '';
-    var savedKey = localStorage.getItem(K_KEY) || sessionStorage.getItem(K_KEY) || '';
-    if(savedUrl){ inpUrl.value = savedUrl; }
-    if(savedKey){ inpKey.value = savedKey; }
-
-    var supabase = null;
-
-    function setStatus(text, cls){
-      connStatus.textContent = text;
-      connStatus.className = 'status ' + (cls || 'warn');
-    }
-
-    function saveCfg(url, key){
-      localStorage.setItem(K_URL, url); sessionStorage.setItem(K_URL, url);
-      localStorage.setItem(K_KEY, key); sessionStorage.setItem(K_KEY, key);
-    }
-
-    btnConnect.addEventListener('click', async function(){
-      try{
-        var url = (inpUrl.value || '').trim();
-        var key = (inpKey.value || '').trim();
-        if(!url || !key){ setStatus('Preencha URL e KEY', 'err'); return; }
-
-        // NÃO é o endpoint de Storage nem a URL do bucket. Tem que ser https://xxxxx.supabase.co
-        if(url.indexOf('.storage.') !== -1){ setStatus('Use a URL do projeto (https://xxxxx.supabase.co), não a do Storage.', 'err'); return; }
-
-        supabase = createClient(url, key);
-        // teste rápido: consulta profiles (ou qualquer tabela pública que exista)
-        var test = await supabase.from('profiles').select('id').limit(1);
-        if(test.error && test.error.message){
-          // Ainda assim consideramos conectado; erro pode ser RLS. O ponto é o client estar válido.
-          setStatus('Conectado (client OK). Teste de consulta: ' + test.error.message, 'ok');
-        }else{
-          setStatus('Conectado (client OK).', 'ok');
-        }
-        saveCfg(url, key);
-      }catch(err){
-        setStatus('Falha: ' + (err && err.message ? err.message : String(err)), 'err');
-      }
-    });
-  </script>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>teste estático</title>
+<body style="font:16px system-ui; padding:24px">
+  <h1>Deploy OK</h1>
+  <p>Se você vê esta página sem erros no console, o problema era o JavaScript do index anterior.</p>
 </body>
 </html>
