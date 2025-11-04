@@ -33,53 +33,61 @@
     </div>
   </div>
 
-  <script type="module">
-    import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm'
+  <!-- Supabase UMD bundle (sem type=module) -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.48.1/dist/umd/supabase.js" defer></script>
 
+  <script defer>
     const K_URL = 'SUPA_URL';
     const K_KEY = 'SUPA_KEY';
+
     const inpUrl = document.querySelector('#inpUrl');
     const inpKey = document.querySelector('#inpKey');
     const btnConnect = document.querySelector('#btnConnect');
     const connStatus = document.querySelector('#connStatus');
 
-    let supabase = null;
+    let sb = null;
 
     function setStatus(msg, cls='warn'){
       connStatus.textContent = msg;
       connStatus.className = 'status ' + cls;
+      console.log('[status]', msg);
     }
 
     function saveCfg(url, key){
       localStorage.setItem(K_URL, url);
       localStorage.setItem(K_KEY, key);
     }
-
-    // Restaura dados salvos
-    window.addEventListener('load', () => {
+    function restoreCfg(){
       const url = localStorage.getItem(K_URL);
       const key = localStorage.getItem(K_KEY);
-      if(url) inpUrl.value = url;
-      if(key) inpKey.value = key;
-    });
+      if (url) inpUrl.value = url;
+      if (key) inpKey.value = key;
+    }
 
-    btnConnect.addEventListener('click', async () => {
-      const url = inpUrl.value.trim();
-      const key = inpKey.value.trim();
-      if(!url || !key){ setStatus('Preencha URL e KEY', 'err'); return; }
+    window.addEventListener('DOMContentLoaded', () => {
+      restoreCfg();
 
-      try {
-        supabase = createClient(url, key);
-        const { data, error } = await supabase.from('profiles').select('id').limit(1);
-        if (error) {
-          setStatus('Conectado (client OK). Teste: ' + error.message, 'ok');
-        } else {
-          setStatus('Conectado (client OK).', 'ok');
+      btnConnect.addEventListener('click', async () => {
+        const url = (inpUrl.value || '').trim();
+        const key = (inpKey.value || '').trim();
+        if (!url || !key){ setStatus('Preencha URL e KEY', 'err'); return; }
+        if (url.includes('.storage.')){ setStatus('Use a URL do PROJETO (https://xxxxx.supabase.co), não a do Storage.', 'err'); return; }
+
+        try {
+          const { createClient } = window.supabase;   // vem do bundle UMD
+          sb = createClient(url, key);
+
+          // teste rápido de conexão/permite SELECT
+          const { data, error } = await sb.from('profiles').select('id').limit(1);
+          if (error) setStatus('Conectado (client OK). Teste: ' + error.message, 'ok');
+          else setStatus('Conectado (client OK).', 'ok');
+
+          saveCfg(url, key);
+        } catch (err) {
+          setStatus('Erro: ' + (err?.message || String(err)), 'err');
+          console.error(err);
         }
-        saveCfg(url, key);
-      } catch (err) {
-        setStatus('Erro: ' + err.message, 'err');
-      }
+      });
     });
   </script>
 </body>
