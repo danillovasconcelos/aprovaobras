@@ -1,117 +1,152 @@
 <!doctype html>
 <html lang="pt-BR">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>aprovaobras · Configurar & Login</title>
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <link rel="icon" href="data:,"><!-- evita 404 do favicon -->
   <style>
-    body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Arial;background:#0b1020;color:#e8eeff}
-    .wrap{max-width:1100px;margin:0 auto;padding:20px 16px}
-    .card{background:#11162d;border:1px solid #1e2547;border-radius:16px;padding:16px;box-shadow:0 8px 30px rgba(0,0,0,.25)}
+    :root{--bg:#0b1020;--card:#11162d;--muted:#8ea0c6;--text:#e8eeff;--accent:#6aa1ff;--ok:#36d399;--warn:#fbbd23;--err:#f87272}
+    *{box-sizing:border-box}
+    body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Arial;background:var(--bg);color:var(--text)}
+    header{padding:20px 16px;border-bottom:1px solid #1e2547;display:flex;align-items:center;justify-content:space-between}
+    .brand{font-weight:700}
+    .wrap{max-width:1100px;margin:0 auto;padding:20px 16px;display:grid;gap:16px}
+    .card{background:var(--card);border:1px solid #1e2547;border-radius:16px;padding:16px;box-shadow:0 8px 30px rgba(0,0,0,.25)}
     h3{margin:0 0 10px 0}
     .row{display:flex;gap:12px;flex-wrap:wrap}
-    input,button{border-radius:12px;border:1px solid #2a3569;background:#0d1430;color:#e8eeff;padding:10px 12px}
-    input{min-width:240px}
+    input,button,select{border-radius:12px;border:1px solid #2a3569;background:#0d1430;color:var(--text);padding:10px 12px}
+    input,select{min-width:240px}
     button{cursor:pointer}
-    .primary{background:#6aa1ff;border-color:#2a62ff;color:#071226;font-weight:600}
+    .primary{background:var(--accent);border-color:#2a62ff;color:#071226;font-weight:600}
     .status{font-size:.95rem}
-    .ok{color:#36d399}.warn{color:#fbbd23}.err{color:#f87272}
-    .note{color:#8ea0c6;font-size:.9rem}
+    .ok{color:var(--ok)} .warn{color:var(--warn)} .err{color:var(--err)}
+    .note{color:var(--muted);font-size:.9rem}
   </style>
 </head>
 <body>
+  <header>
+    <div class="brand">aprovaobras · Empresas · Usuários · PDFs</div>
+    <nav><a style="color:#6aa1ff;text-decoration:none" href="./services.html">Ir para Serviços do Usuário →</a></nav>
+  </header>
+
   <div class="wrap">
     <div class="card">
-      <h3>1) Configurar Supabase</h3>
-      <div class="note">Cole sua <b>SUPABASE_URL</b> (ex: https://xxxxx.supabase.co) e <b>ANON KEY</b>. Fica salvo no navegador.</div>
-      <div class="row" style="margin-top:10px">
-        <input id="inpUrl" placeholder="https://xxxxx.supabase.co">
-        <input id="inpKey" placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...">
-        <button id="btnConnect" class="primary">Conectar</button>
+      <div class="grid">
+        <h3>1) Configurar Supabase</h3>
+        <div class="note">Cole sua <b>SUPABASE_URL</b> e <b>ANON KEY</b> (salvo nesta sessão do navegador).</div>
+        <div class="row" style="margin-top:10px">
+          <input id="inpUrl" placeholder="https://xxxxx.supabase.co" />
+          <input id="inpKey" placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." />
+          <button id="btnConnect" class="primary">Conectar</button>
+        </div>
+        <div style="margin-top:8px">Status: <span id="connStatus" class="status warn">Aguardando...</span></div>
+        <div class="note" style="margin-top:6px">Após conectar, faça login no bloco ao lado.</div>
       </div>
-      <div style="margin-top:8px">Status: <span id="connStatus" class="status warn">Aguardando...</span></div>
     </div>
 
-    <div class="card" style="margin-top:16px">
+    <div class="card">
       <h3>2) Login / Cadastro</h3>
-      <div class="row" style="margin-top:10px">
-        <input id="email" type="email" placeholder="email@exemplo.com">
-        <input id="password" type="password" placeholder="Senha">
+      <div class="row">
+        <input id="email" type="email" placeholder="email@exemplo.com" />
+        <input id="password" type="password" placeholder="Senha" />
+      </div>
+      <div class="row" style="margin-top:8px">
         <button id="btnSignUp">Criar usuário</button>
         <button id="btnSignIn" class="primary">Entrar</button>
         <button id="btnReset">Esqueci a senha</button>
       </div>
+      <div class="note" style="margin-top:6px">Depois de logado, selecione ou crie uma Empresa para trabalhar.</div>
     </div>
   </div>
 
   <script type="module">
-    import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
+    import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";
 
-    const K_URL = 'SUPA_URL';
-    const K_KEY = 'SUPA_KEY';
+    const K_URL = "SUPA_URL";
+    const K_KEY = "SUPA_KEY";
 
-    const $ = (sel) => document.querySelector(sel);
-    const inpUrl = $('#inpUrl');
-    const inpKey = $('#inpKey');
-    const btnConnect = $('#btnConnect');
-    const statusEl = $('#connStatus');
+    const $ = (s) => document.querySelector(s);
+    const inpUrl = $("#inpUrl");
+    const inpKey = $("#inpKey");
+    const connStatus = $("#connStatus");
+    const btnConnect = $("#btnConnect");
+    const email = $("#email");
+    const password = $("#password");
+    const btnSignUp = $("#btnSignUp");
+    const btnSignIn = $("#btnSignIn");
+    const btnReset = $("#btnReset");
 
-    const email = $('#email');
-    const password = $('#password');
-    const btnSignUp = $('#btnSignUp');
-    const btnSignIn = $('#btnSignIn');
-    const btnReset  = $('#btnReset');
+    let supabase = null;
 
-    let sb = null;
+    const setStatus = (msg, cls = "warn") => {
+      connStatus.textContent = msg;
+      connStatus.className = "status " + cls;
+    };
 
-    function setStatus(msg, cls='warn'){
-      statusEl.textContent = msg;
-      statusEl.className = 'status ' + cls;
-    }
+    const saveCfg = (url, key) => {
+      sessionStorage.setItem(K_URL, url);
+      sessionStorage.setItem(K_KEY, key);
+      localStorage.setItem(K_URL, url);
+      localStorage.setItem(K_KEY, key);
+    };
 
-    // Restaura config salva
-    window.addEventListener('load', () => {
-      const u = localStorage.getItem(K_URL) || '';
-      const k = localStorage.getItem(K_KEY) || '';
-      if (u) inpUrl.value = u;
-      if (k) inpKey.value = k;
-      if (u && k) {
-        sb = createClient(u, k);
-        setStatus('Conectado (restaurado).', 'ok');
-      }
+    const loadCfg = () => ({
+      url: sessionStorage.getItem(K_URL) || localStorage.getItem(K_URL) || "",
+      key: sessionStorage.getItem(K_KEY) || localStorage.getItem(K_KEY) || ""
     });
 
-    btnConnect.addEventListener('click', async () => {
-      const url = (inpUrl.value || '').trim();
-      const key = (inpKey.value || '').trim();
-      if (!url || !key){ setStatus('Preencha URL e KEY', 'err'); return; }
+    btnConnect.addEventListener("click", async () => {
+      const url = (inpUrl.value || "").trim();
+      const key = (inpKey.value || "").trim();
+      if (!url || !key) { setStatus("Preencha URL e KEY", "err"); return; }
+      if (url.indexOf(".storage.") !== -1) { setStatus("Use a URL do projeto (https://xxxxx.supabase.co), não a do Storage.", "err"); return; }
+
       try {
-        sb = createClient(url, key);
-        const { error } = await sb.from('profiles').select('id').limit(1);
-        setStatus('Conectado (client OK)' + (error ? ' · Teste: ' + error.message : '.'), 'ok');
-        localStorage.setItem(K_URL, url);
-        localStorage.setItem(K_KEY, key);
+        supabase = createClient(url, key);
+        const { error } = await supabase.from("profiles").select("id").limit(1);
+        setStatus(error ? "Conectado (client OK). Teste: " + error.message : "Conectado (client OK).", "ok");
+        saveCfg(url, key);
       } catch (e) {
-        setStatus('Erro: ' + (e?.message || e), 'err');
+        setStatus("Erro: " + e.message, "err");
       }
     });
 
-    btnSignUp.addEventListener('click', async () => {
-      if(!sb){ alert('Conecte ao Supabase primeiro.'); return; }
-      const { error } = await sb.auth.signUp({ email: email.value.trim(), password: password.value });
-      if (error) alert('Erro ao criar usuário: ' + error.message); else alert('Usuário criado. Confirme o e-mail.');
+    btnSignUp.addEventListener("click", async () => {
+      try {
+        if (!supabase) throw new Error("Conecte ao Supabase primeiro.");
+        const { error } = await supabase.auth.signUp({ email: (email.value || "").trim(), password: (password.value || "").trim() });
+        if (error) throw error;
+        alert("Usuário criado. Verifique seu e-mail para confirmar.");
+      } catch (e) { alert("Erro ao criar usuário: " + e.message); }
     });
 
-    btnSignIn.addEventListener('click', async () => {
-      if(!sb){ alert('Conecte ao Supabase primeiro.'); return; }
-      const { error } = await sb.auth.signInWithPassword({ email: email.value.trim(), password: password.value });
-      if (error) alert('Erro no login: ' + error.message); else alert('Logado!');
+    btnSignIn.addEventListener("click", async () => {
+      try {
+        if (!supabase) throw new Error("Conecte ao Supabase primeiro.");
+        const { error } = await supabase.auth.signInWithPassword({ email: (email.value || "").trim(), password: (password.value || "").trim() });
+        if (error) throw error;
+        alert("Login OK!");
+      } catch (e) { alert("Erro no login: " + e.message); }
     });
 
-    btnReset.addEventListener('click', async () => {
-      if(!sb){ alert('Conecte ao Supabase primeiro.'); return; }
-      const { error } = await sb.auth.resetPasswordForEmail(email.value.trim());
-      if (error) alert('Erro: ' + error.message); else alert('Se o e-mail existir, enviaremos link.');
+    btnReset.addEventListener("click", async () => {
+      try {
+        if (!supabase) throw new Error("Conecte ao Supabase primeiro.");
+        const addr = (email.value || "").trim();
+        if (!addr) { alert("Informe o e-mail."); return; }
+        const { error } = await supabase.auth.resetPasswordForEmail(addr, { redirectTo: location.origin + "/index.html" });
+        if (error) throw error;
+        alert("Se o e-mail existir, enviaremos um link de redefinição.");
+      } catch (e) { alert("Erro: " + e.message); }
+    });
+
+    // restaura cfg se já existia
+    window.addEventListener("load", () => {
+      const cfg = loadCfg();
+      if (cfg.url) inpUrl.value = cfg.url;
+      if (cfg.key) inpKey.value = cfg.key;
     });
   </script>
 </body>
