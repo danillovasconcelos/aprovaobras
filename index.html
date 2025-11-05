@@ -2,10 +2,11 @@
 <html lang="pt-BR">
 <head>
   <meta charset="utf-8" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>aprovaobras · Configurar & Login</title>
-  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
-  <link rel="icon" href="data:,"><!-- evita 404 do favicon -->
+  <!-- evita 404 do favicon -->
+  <link rel="icon" href="data:,">
   <style>
     :root{--bg:#0b1020;--card:#11162d;--muted:#8ea0c6;--text:#e8eeff;--accent:#6aa1ff;--ok:#36d399;--warn:#fbbd23;--err:#f87272}
     *{box-sizing:border-box}
@@ -16,34 +17,32 @@
     .card{background:var(--card);border:1px solid #1e2547;border-radius:16px;padding:16px;box-shadow:0 8px 30px rgba(0,0,0,.25)}
     h3{margin:0 0 10px 0}
     .row{display:flex;gap:12px;flex-wrap:wrap}
-    input,button,select{border-radius:12px;border:1px solid #2a3569;background:#0d1430;color:var(--text);padding:10px 12px}
-    input,select{min-width:240px}
+    input,button{border-radius:12px;border:1px solid #2a3569;background:#0d1430;color:#e8eeff;padding:10px 12px}
+    input{min-width:240px}
     button{cursor:pointer}
     .primary{background:var(--accent);border-color:#2a62ff;color:#071226;font-weight:600}
-    .status{font-size:.95rem}
-    .ok{color:var(--ok)} .warn{color:var(--warn)} .err{color:var(--err)}
+    .status{font-size:.95rem}.ok{color:var(--ok)}.warn{color:var(--warn)}.err{color:var(--err)}
     .note{color:var(--muted);font-size:.9rem}
+    a.link{color:#6aa1ff;text-decoration:none}
   </style>
 </head>
 <body>
   <header>
     <div class="brand">aprovaobras · Empresas · Usuários · PDFs</div>
-    <nav><a style="color:#6aa1ff;text-decoration:none" href="./services.html">Ir para Serviços do Usuário →</a></nav>
+    <nav><a class="link" href="./services.html">Ir para Serviços do Usuário →</a></nav>
   </header>
 
   <div class="wrap">
     <div class="card">
-      <div class="grid">
-        <h3>1) Configurar Supabase</h3>
-        <div class="note">Cole sua <b>SUPABASE_URL</b> e <b>ANON KEY</b> (salvo nesta sessão do navegador).</div>
-        <div class="row" style="margin-top:10px">
-          <input id="inpUrl" placeholder="https://xxxxx.supabase.co" />
-          <input id="inpKey" placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." />
-          <button id="btnConnect" class="primary">Conectar</button>
-        </div>
-        <div style="margin-top:8px">Status: <span id="connStatus" class="status warn">Aguardando...</span></div>
-        <div class="note" style="margin-top:6px">Após conectar, faça login no bloco ao lado.</div>
+      <h3>1) Configurar Supabase</h3>
+      <div class="note">Cole sua <b>SUPABASE_URL</b> e <b>ANON KEY</b> (salvo nesta sessão do navegador).</div>
+      <div class="row" style="margin-top:10px">
+        <input id="inpUrl" placeholder="https://xxxxx.supabase.co" />
+        <input id="inpKey" placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." />
+        <button id="btnConnect" class="primary">Conectar</button>
       </div>
+      <div style="margin-top:8px">Status: <span id="connStatus" class="status warn">Aguardando...</span></div>
+      <div class="note" style="margin-top:6px">Após conectar, use o bloco abaixo.</div>
     </div>
 
     <div class="card">
@@ -57,7 +56,6 @@
         <button id="btnSignIn" class="primary">Entrar</button>
         <button id="btnReset">Esqueci a senha</button>
       </div>
-      <div class="note" style="margin-top:6px">Depois de logado, selecione ou crie uma Empresa para trabalhar.</div>
     </div>
   </div>
 
@@ -80,73 +78,75 @@
 
     let supabase = null;
 
-    const setStatus = (msg, cls = "warn") => {
-      connStatus.textContent = msg;
-      connStatus.className = "status " + cls;
-    };
+    function setStatus(msg, cls="warn"){ connStatus.textContent = msg; connStatus.className = "status "+cls; }
 
-    const saveCfg = (url, key) => {
-      sessionStorage.setItem(K_URL, url);
-      sessionStorage.setItem(K_KEY, key);
-      localStorage.setItem(K_URL, url);
-      localStorage.setItem(K_KEY, key);
-    };
-
-    const loadCfg = () => ({
-      url: sessionStorage.getItem(K_URL) || localStorage.getItem(K_URL) || "",
-      key: sessionStorage.getItem(K_KEY) || localStorage.getItem(K_KEY) || ""
-    });
+    function saveCfg(url, key){
+      sessionStorage.setItem(K_URL, url); sessionStorage.setItem(K_KEY, key);
+      localStorage.setItem(K_URL, url);   localStorage.setItem(K_KEY, key);
+    }
+    function loadCfg(){
+      return {
+        url: sessionStorage.getItem(K_URL) || localStorage.getItem(K_URL) || "",
+        key: sessionStorage.getItem(K_KEY) || localStorage.getItem(K_KEY) || ""
+      };
+    }
 
     btnConnect.addEventListener("click", async () => {
-      const url = (inpUrl.value || "").trim();
-      const key = (inpKey.value || "").trim();
-      if (!url || !key) { setStatus("Preencha URL e KEY", "err"); return; }
-      if (url.indexOf(".storage.") !== -1) { setStatus("Use a URL do projeto (https://xxxxx.supabase.co), não a do Storage.", "err"); return; }
+      const url = (inpUrl.value||"").trim();
+      const key = (inpKey.value||"").trim();
+      if(!url || !key){ setStatus("Preencha URL e KEY", "err"); return; }
+      if(url.includes(".storage.")){ setStatus("Use a URL do projeto (https://xxxxx.supabase.co), não a do Storage.", "err"); return; }
 
-      try {
+      try{
         supabase = createClient(url, key);
         const { error } = await supabase.from("profiles").select("id").limit(1);
-        setStatus(error ? "Conectado (client OK). Teste: " + error.message : "Conectado (client OK).", "ok");
+        setStatus(error ? "Conectado (client OK). Teste: "+error.message : "Conectado (client OK).", "ok");
         saveCfg(url, key);
-      } catch (e) {
-        setStatus("Erro: " + e.message, "err");
-      }
+      }catch(e){ setStatus("Erro: "+e.message, "err"); }
     });
 
     btnSignUp.addEventListener("click", async () => {
-      try {
-        if (!supabase) throw new Error("Conecte ao Supabase primeiro.");
-        const { error } = await supabase.auth.signUp({ email: (email.value || "").trim(), password: (password.value || "").trim() });
-        if (error) throw error;
+      try{
+        if(!supabase) throw new Error("Conecte ao Supabase primeiro.");
+        const { error } = await supabase.auth.signUp({
+          email: (email.value||"").trim(),
+          password: (password.value||"").trim()
+        });
+        if(error) throw error;
         alert("Usuário criado. Verifique seu e-mail para confirmar.");
-      } catch (e) { alert("Erro ao criar usuário: " + e.message); }
+      }catch(e){ alert("Erro ao criar usuário: "+e.message); }
     });
 
     btnSignIn.addEventListener("click", async () => {
-      try {
-        if (!supabase) throw new Error("Conecte ao Supabase primeiro.");
-        const { error } = await supabase.auth.signInWithPassword({ email: (email.value || "").trim(), password: (password.value || "").trim() });
-        if (error) throw error;
+      try{
+        if(!supabase) throw new Error("Conecte ao Supabase primeiro.");
+        const { error } = await supabase.auth.signInWithPassword({
+          email: (email.value||"").trim(),
+          password: (password.value||"").trim()
+        });
+        if(error) throw error;
         alert("Login OK!");
-      } catch (e) { alert("Erro no login: " + e.message); }
+      }catch(e){ alert("Erro no login: "+e.message); }
     });
 
     btnReset.addEventListener("click", async () => {
-      try {
-        if (!supabase) throw new Error("Conecte ao Supabase primeiro.");
-        const addr = (email.value || "").trim();
-        if (!addr) { alert("Informe o e-mail."); return; }
-        const { error } = await supabase.auth.resetPasswordForEmail(addr, { redirectTo: location.origin + "/index.html" });
-        if (error) throw error;
+      try{
+        if(!supabase) throw new Error("Conecte ao Supabase primeiro.");
+        const addr = (email.value||"").trim();
+        if(!addr){ alert("Informe o e-mail."); return; }
+        const { error } = await supabase.auth.resetPasswordForEmail(addr, {
+          redirectTo: location.origin + "/index.html"
+        });
+        if(error) throw error;
         alert("Se o e-mail existir, enviaremos um link de redefinição.");
-      } catch (e) { alert("Erro: " + e.message); }
+      }catch(e){ alert("Erro: "+e.message); }
     });
 
-    // restaura cfg se já existia
+    // restaura cfg salvo
     window.addEventListener("load", () => {
       const cfg = loadCfg();
-      if (cfg.url) inpUrl.value = cfg.url;
-      if (cfg.key) inpKey.value = cfg.key;
+      if(cfg.url) inpUrl.value = cfg.url;
+      if(cfg.key) inpKey.value = cfg.key;
     });
   </script>
 </body>
