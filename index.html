@@ -1,8 +1,8 @@
 <!doctype html>
 <html lang="pt-BR">
 <head>
-  <meta charset="utf-8"/>
-  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>aprovaobras · Configurar & Login</title>
   <style>
     body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Arial;background:#0b1020;color:#e8eeff}
@@ -23,7 +23,7 @@
   <div class="wrap">
     <div class="card">
       <h3>1) Configurar Supabase</h3>
-      <div class="note">Cole sua <b>SUPABASE_URL</b> (ex: https://xxxxx.supabase.co) e <b>ANON KEY</b>.</div>
+      <div class="note">Cole sua <b>SUPABASE_URL</b> (ex: https://xxxxx.supabase.co) e <b>ANON KEY</b>. Fica salvo no navegador.</div>
       <div class="row" style="margin-top:10px">
         <input id="inpUrl" placeholder="https://xxxxx.supabase.co">
         <input id="inpKey" placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...">
@@ -31,63 +31,87 @@
       </div>
       <div style="margin-top:8px">Status: <span id="connStatus" class="status warn">Aguardando...</span></div>
     </div>
+
+    <div class="card" style="margin-top:16px">
+      <h3>2) Login / Cadastro</h3>
+      <div class="row" style="margin-top:10px">
+        <input id="email" type="email" placeholder="email@exemplo.com">
+        <input id="password" type="password" placeholder="Senha">
+        <button id="btnSignUp">Criar usuário</button>
+        <button id="btnSignIn" class="primary">Entrar</button>
+        <button id="btnReset">Esqueci a senha</button>
+      </div>
+    </div>
   </div>
 
-  <!-- Supabase UMD bundle (sem type=module) -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.48.1/dist/umd/supabase.js" defer></script>
+  <script type="module">
+    import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
 
-  <script defer>
     const K_URL = 'SUPA_URL';
     const K_KEY = 'SUPA_KEY';
 
-    const inpUrl = document.querySelector('#inpUrl');
-    const inpKey = document.querySelector('#inpKey');
-    const btnConnect = document.querySelector('#btnConnect');
-    const connStatus = document.querySelector('#connStatus');
+    const $ = (sel) => document.querySelector(sel);
+    const inpUrl = $('#inpUrl');
+    const inpKey = $('#inpKey');
+    const btnConnect = $('#btnConnect');
+    const statusEl = $('#connStatus');
+
+    const email = $('#email');
+    const password = $('#password');
+    const btnSignUp = $('#btnSignUp');
+    const btnSignIn = $('#btnSignIn');
+    const btnReset  = $('#btnReset');
 
     let sb = null;
 
     function setStatus(msg, cls='warn'){
-      connStatus.textContent = msg;
-      connStatus.className = 'status ' + cls;
-      console.log('[status]', msg);
+      statusEl.textContent = msg;
+      statusEl.className = 'status ' + cls;
     }
 
-    function saveCfg(url, key){
-      localStorage.setItem(K_URL, url);
-      localStorage.setItem(K_KEY, key);
-    }
-    function restoreCfg(){
-      const url = localStorage.getItem(K_URL);
-      const key = localStorage.getItem(K_KEY);
-      if (url) inpUrl.value = url;
-      if (key) inpKey.value = key;
-    }
+    // Restaura config salva
+    window.addEventListener('load', () => {
+      const u = localStorage.getItem(K_URL) || '';
+      const k = localStorage.getItem(K_KEY) || '';
+      if (u) inpUrl.value = u;
+      if (k) inpKey.value = k;
+      if (u && k) {
+        sb = createClient(u, k);
+        setStatus('Conectado (restaurado).', 'ok');
+      }
+    });
 
-    window.addEventListener('DOMContentLoaded', () => {
-      restoreCfg();
+    btnConnect.addEventListener('click', async () => {
+      const url = (inpUrl.value || '').trim();
+      const key = (inpKey.value || '').trim();
+      if (!url || !key){ setStatus('Preencha URL e KEY', 'err'); return; }
+      try {
+        sb = createClient(url, key);
+        const { error } = await sb.from('profiles').select('id').limit(1);
+        setStatus('Conectado (client OK)' + (error ? ' · Teste: ' + error.message : '.'), 'ok');
+        localStorage.setItem(K_URL, url);
+        localStorage.setItem(K_KEY, key);
+      } catch (e) {
+        setStatus('Erro: ' + (e?.message || e), 'err');
+      }
+    });
 
-      btnConnect.addEventListener('click', async () => {
-        const url = (inpUrl.value || '').trim();
-        const key = (inpKey.value || '').trim();
-        if (!url || !key){ setStatus('Preencha URL e KEY', 'err'); return; }
-        if (url.includes('.storage.')){ setStatus('Use a URL do PROJETO (https://xxxxx.supabase.co), não a do Storage.', 'err'); return; }
+    btnSignUp.addEventListener('click', async () => {
+      if(!sb){ alert('Conecte ao Supabase primeiro.'); return; }
+      const { error } = await sb.auth.signUp({ email: email.value.trim(), password: password.value });
+      if (error) alert('Erro ao criar usuário: ' + error.message); else alert('Usuário criado. Confirme o e-mail.');
+    });
 
-        try {
-          const { createClient } = window.supabase;   // vem do bundle UMD
-          sb = createClient(url, key);
+    btnSignIn.addEventListener('click', async () => {
+      if(!sb){ alert('Conecte ao Supabase primeiro.'); return; }
+      const { error } = await sb.auth.signInWithPassword({ email: email.value.trim(), password: password.value });
+      if (error) alert('Erro no login: ' + error.message); else alert('Logado!');
+    });
 
-          // teste rápido de conexão/permite SELECT
-          const { data, error } = await sb.from('profiles').select('id').limit(1);
-          if (error) setStatus('Conectado (client OK). Teste: ' + error.message, 'ok');
-          else setStatus('Conectado (client OK).', 'ok');
-
-          saveCfg(url, key);
-        } catch (err) {
-          setStatus('Erro: ' + (err?.message || String(err)), 'err');
-          console.error(err);
-        }
-      });
+    btnReset.addEventListener('click', async () => {
+      if(!sb){ alert('Conecte ao Supabase primeiro.'); return; }
+      const { error } = await sb.auth.resetPasswordForEmail(email.value.trim());
+      if (error) alert('Erro: ' + error.message); else alert('Se o e-mail existir, enviaremos link.');
     });
   </script>
 </body>
